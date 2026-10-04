@@ -1,4 +1,4 @@
-import { FilteredValueToken, TagToken, HTMLToken, HashToken, QuotedToken, LiquidTagToken, OutputToken, ValueToken, Token, RangeToken, FilterToken, TopLevelToken, PropertyAccessToken, OperatorToken, LiteralToken, IdentifierToken, NumberToken } from '../tokens'
+import { FilteredValueToken, TagToken, HTMLToken, HashToken, QuotedToken, LiquidTagToken, OutputToken, ValueToken, Token, RangeToken, ParenthesizedToken, FilterToken, TopLevelToken, PropertyAccessToken, OperatorToken, LiteralToken, IdentifierToken, NumberToken } from '../tokens'
 import { OperatorHandler } from '../render/operator'
 import { TrieNode, LiteralValue, Trie, createTrie, ellipsis, literalValues, TokenizationError, TYPES, QUOTE, BLANK, NUMBER, SIGN, isWord, isString } from '../util'
 import { Operators, Expression } from '../render'
@@ -25,16 +25,23 @@ export class Tokenizer {
     this.literalTrie = createTrie(literalValues)
   }
 
-  readExpression () {
-    return new Expression(this.readExpressionTokens())
+  readExpression (allowParentheses = false) {
+    return new Expression(this.readExpressionTokens(allowParentheses))
   }
 
-  * readExpressionTokens (): IterableIterator<Token> {
+  * readExpressionTokens (allowParentheses = false): IterableIterator<Token> {
     while (this.p < this.N) {
       const operator = this.readOperator()
       if (operator) {
         yield operator
         continue
+      }
+      if (allowParentheses) {
+        const parenthesized = this.readParenthesized()
+        if (parenthesized) {
+          yield parenthesized
+          continue
+        }
       }
       const operand = this.readValue()
       if (operand) {
@@ -43,6 +50,29 @@ export class Tokenizer {
       }
       return
     }
+  }
+
+  /**
+   * Read a parenthesized group, e.g. `(vip or coupon)`, which can be nested.
+   * A leading `(` can also begin a range literal, e.g. `(1..3)`, which is
+   * read as a RangeToken instead.
+   */
+  readParenthesized (): ParenthesizedToken | RangeToken | undefined {
+    this.skipBlank()
+    const begin = this.p
+    if (this.peek() !== '(') return
+    try {
+      return this.readRange()
+    } catch (err) {
+      // not a range, rewind and read as a parenthesized expression
+      this.p = begin
+    }
+    ++this.p
+    const tokens = [...this.readExpressionTokens(true)]
+    this.skipBlank()
+    this.assert(tokens.length > 0, 'empty parenthesized expression', begin)
+    this.assert(this.read() === ')', 'parenthesized expression not closed', begin)
+    return new ParenthesizedToken(this.input, begin, this.p, new Expression(tokens), this.file)
   }
   readOperator (): OperatorToken | undefined {
     this.skipBlank()
@@ -62,9 +92,9 @@ export class Tokenizer {
     if (info['needBoundary'] && isWord(this.peek(i - this.p))) return -1
     return i
   }
-  readFilteredValue (): FilteredValueToken {
+  readFilteredValue (allowParentheses = false): FilteredValueToken {
     const begin = this.p
-    const initial = this.readExpression()
+    const initial = this.readExpression(allowParentheses)
     this.assert(initial.valid(), `invalid value expression: ${this.snapshot()}`)
     const filters = this.readFilters()
     return new FilteredValueToken(initial, filters, this.input, begin, this.p, this.file)

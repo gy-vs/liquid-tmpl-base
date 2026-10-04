@@ -1,4 +1,4 @@
-import { RangeToken, NumberToken, QuotedToken, LiteralToken, PropertyAccessToken, OutputToken, HTMLToken, TagToken, IdentifierToken, DelimitedToken, OperatorToken, ValueToken } from '../tokens'
+import { RangeToken, NumberToken, QuotedToken, LiteralToken, PropertyAccessToken, ParenthesizedToken, OutputToken, HTMLToken, TagToken, IdentifierToken, DelimitedToken, OperatorToken, ValueToken } from '../tokens'
 import { TokenKind } from '../parser'
 
 export function isDelimitedToken (val: any): val is DelimitedToken {
@@ -45,9 +45,13 @@ export function isRangeToken (val: any): val is RangeToken {
   return getKind(val) === TokenKind.Range
 }
 
+export function isParenthesizedToken (val: any): val is ParenthesizedToken {
+  return getKind(val) === TokenKind.Parenthesized
+}
+
 export function isValueToken (val: any): val is ValueToken {
-  // valueTokenBitMask = TokenKind.Number | TokenKind.Literal | TokenKind.Quoted | TokenKind.PropertyAccess | TokenKind.Range
-  return (getKind(val) & 1667) > 0
+  // valueTokenBitMask = TokenKind.Number | TokenKind.Literal | TokenKind.Quoted | TokenKind.PropertyAccess | TokenKind.Range | TokenKind.Parenthesized
+  return (getKind(val) & 9859) > 0
 }
 
 function getKind (val: any) {

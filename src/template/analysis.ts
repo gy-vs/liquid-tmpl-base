@@ -3,6 +3,7 @@ import { isKeyValuePair } from '../parser/filter-arg'
 import { PropertyAccessToken, ValueToken } from '../tokens'
 import {
   isNumberToken,
+  isParenthesizedToken,
   isPropertyAccessToken,
   isQuotedToken,
   isRangeToken,
@@ -371,6 +372,12 @@ function * extractValueTokenVariables (token: ValueToken): Generator<Variable> {
   if (isRangeToken(token)) {
     yield * extractValueTokenVariables(token.lhs)
     yield * extractValueTokenVariables(token.rhs)
+  } else if (isParenthesizedToken(token)) {
+    for (const t of token.expression.postfix) {
+      if (isValueToken(t)) {
+        yield * extractValueTokenVariables(t)
+      }
+    }
   } else if (isPropertyAccessToken(token)) {
     yield extractPropertyAccessVariable(token)
   }

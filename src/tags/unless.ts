@@ -11,7 +11,7 @@ export default class extends Tag {
     let elseCount = 0
     parser.parseStream(remainTokens)
       .on('start', () => this.branches.push({
-        value: new Value(tagToken.tokenizer.readFilteredValue(), this.liquid),
+        value: new Value(tagToken.tokenizer.readFilteredValue(this.liquid.options.parenthesizedConditions), this.liquid),
         test: isFalsy,
         templates: (p = [])
       }))
@@ -21,7 +21,7 @@ export default class extends Tag {
           return
         }
         this.branches.push({
-          value: new Value(token.tokenizer.readFilteredValue(), this.liquid),
+          value: new Value(token.tokenizer.readFilteredValue(this.liquid.options.parenthesizedConditions), this.liquid),
           test: isTruthy,
           templates: (p = [])
         })

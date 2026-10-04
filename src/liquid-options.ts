@@ -82,6 +82,8 @@ export interface LiquidOptions {
   outputEscape?: OutputEscapeOption;
   /** An object of operators for conditional statements. Defaults to the regular Liquid operators. */
   operators?: Operators;
+  /** Whether to allow parentheses to group sub-expressions in the conditions of `if`, `elsif` and `unless` tags, e.g. `{% if (vip or coupon) and active %}`. Parenthesized groups are evaluated first and can be nested. Range literals like `(1..3)` are unaffected. Defaults to `true`. */
+  parenthesizedConditions?: boolean;
   /** Respect parameter order when using filters like "for ... reversed limit", Defaults to `false`. */
   orderedFilterParameters?: boolean;
   /** For DoS handling, limit total length of templates parsed in one `parse()` call. A typical PC can handle 1e8 (100M) characters without issues. */
@@ -159,6 +161,7 @@ export interface NormalizedFullOptions extends NormalizedOptions {
   globals: object;
   keepOutputType: boolean;
   operators: Operators;
+  parenthesizedConditions: boolean;
   parseLimit: number;
   renderLimit: number;
   memoryLimit: number;
@@ -195,6 +198,7 @@ export const defaultOptions: NormalizedFullOptions = {
   globals: {},
   keepOutputType: false,
   operators: defaultOperators,
+  parenthesizedConditions: true,
   memoryLimit: Infinity,
   parseLimit: Infinity,
   renderLimit: Infinity
