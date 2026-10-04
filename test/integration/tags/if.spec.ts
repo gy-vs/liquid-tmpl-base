@@ -169,4 +169,64 @@ describe('tags/if', function () {
     expect(() => liquid.parseAndRenderSync('{% if false %}{% else %}{% elsif true %}{% endif %}'))
       .toThrow(`unexpected elsif after else`)
   })
+
+  describe('parenthesized expressions', function () {
+    it('should evaluate grouped operands first', async function () {
+      const src = '{% if (vip or coupon) and active %}yes{% else %}no{% endif %}'
+      const html = await liquid.parseAndRender(src, { vip: true, coupon: false, active: false })
+      return expect(html).toBe('no')
+    })
+    it('should keep right associativity without parentheses', async function () {
+      const src = '{% if vip or coupon and active %}yes{% else %}no{% endif %}'
+      const html = await liquid.parseAndRender(src, { vip: true, coupon: false, active: false })
+      return expect(html).toBe('yes')
+    })
+    it('should support comparisons in groups', async function () {
+      const src = '{% if (score > 80 and level == "gold") or admin %}yes{% else %}no{% endif %}'
+      expect(await liquid.parseAndRender(src, { score: 90, level: 'silver', admin: false })).toBe('no')
+      expect(await liquid.parseAndRender(src, { score: 90, level: 'gold', admin: false })).toBe('yes')
+      expect(await liquid.parseAndRender(src, { score: 0, level: 'silver', admin: true })).toBe('yes')
+    })
+    it('should support contains in groups', async function () {
+      const src = '{% if (tags contains "vip") or admin %}yes{% else %}no{% endif %}'
+      expect(await liquid.parseAndRender(src, { tags: ['normal'], admin: false })).toBe('no')
+      expect(await liquid.parseAndRender(src, { tags: ['vip'], admin: false })).toBe('yes')
+    })
+    it('should support nested parentheses', async function () {
+      const src = '{% if ((a or b) and (c or d)) %}yes{% else %}no{% endif %}'
+      expect(await liquid.parseAndRender(src, { a: true, b: false, c: false, d: true })).toBe('yes')
+      expect(await liquid.parseAndRender(src, { a: true, b: false, c: false, d: false })).toBe('no')
+    })
+    it('should support parentheses in elsif', async function () {
+      const src = '{% if a %}1{% elsif (b or c) %}2{% else %}3{% endif %}'
+      const html = await liquid.parseAndRender(src, { a: false, b: false, c: true })
+      return expect(html).toBe('2')
+    })
+    it('should still parse ranges', async function () {
+      expect(await liquid.parseAndRender('{% if (1..3) contains 2 %}yes{% else %}no{% endif %}')).toBe('yes')
+      expect(await liquid.parseAndRender('{% if (a..b) contains 2 %}yes{% else %}no{% endif %}', { a: 1, b: 3 })).toBe('yes')
+    })
+    it('should support ranges inside groups', async function () {
+      const src = '{% if ((1..3) contains 2) and x %}yes{% else %}no{% endif %}'
+      return expect(await liquid.parseAndRender(src, { x: true })).toBe('yes')
+    })
+    it('should throw for missing closing parenthesis', function () {
+      const src = '{% if (a or b %}yes{% endif %}'
+      return expect(() => liquid.parse(src)).toThrow(/missing closing parenthesis/)
+    })
+    it('should throw for empty parentheses', function () {
+      const src = '{% if () %}yes{% endif %}'
+      return expect(() => liquid.parse(src)).toThrow(/value expected/)
+    })
+    it('should report the position for missing closing parenthesis', async function () {
+      const src = '{% if (a or b %}yes{% endif %}'
+      expect(() => liquid.parse(src)).toThrow(/line:1, col:7/)
+    })
+    it('can be disabled', async function () {
+      const legacy = new Liquid({ parenthesizedExpressions: false })
+      const src = '{% if (vip or coupon) and active %}yes{% else %}no{% endif %}'
+      expect(() => legacy.parse(src)).toThrow(/invalid range syntax/)
+      return expect(legacy.parseAndRender('{% for i in (1..3) %}{{ i }}{% endfor %}')).resolves.toBe('123')
+    })
+  })
 })

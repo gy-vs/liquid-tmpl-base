@@ -240,6 +240,35 @@ describe('Expression', function () {
     })
   })
 
+  describe('parenthesized expression', function () {
+    it('should evaluate grouped operands first', async function () {
+      const condition = await toPromise(create('(true or false) and false').evaluate(ctx, false))
+      expect(condition).toBe(false)
+    })
+    it('should not change right associativity without parentheses', async function () {
+      const condition = await toPromise(create('true or false and false').evaluate(ctx, false))
+      expect(condition).toBe(true)
+    })
+    it('should support comparisons in groups', async function () {
+      const test = await toPromise(create('(1 > 2 and 3 < 4) or true').evaluate(ctx, false))
+      expect(test).toBe(true)
+    })
+    it('should support contains in groups', async function () {
+      const scope = new Context({ tags: ['vip'] })
+      expect(await toPromise(create('(tags contains "vip") and true').evaluate(scope, false))).toBe(true)
+    })
+    it('should support nested parentheses', async function () {
+      expect(await toPromise(create('((true or false) and (false or true))').evaluate(ctx, false))).toBe(true)
+      expect(await toPromise(create('((true or false) and (false and true))').evaluate(ctx, false))).toBe(false)
+    })
+    it('should support not with parentheses', async function () {
+      expect(await toPromise(create('not (true and false)').evaluate(ctx, false))).toBe(true)
+    })
+    it('should evaluate range inside a group', async function () {
+      expect(await toPromise(create('((1..3) contains 2) and true').evaluate(ctx, false))).toBe(true)
+    })
+  })
+
   describe('sync', function () {
     it('should eval literal', function () {
       expect(toValueSync(create('2.4').evaluate(ctx, false))).toBe(2.4)

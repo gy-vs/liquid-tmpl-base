@@ -83,4 +83,17 @@ describe('tags/unless', function () {
       expect(html).toBe('yes')
     })
   })
+
+  describe('parenthesized expressions', function () {
+    it('should support parentheses in unless', async function () {
+      const src = '{% unless (a and b) or c %}yes{% else %}no{% endunless %}'
+      expect(await liquid.parseAndRender(src, { a: true, b: true, c: false })).toBe('no')
+      expect(await liquid.parseAndRender(src, { a: true, b: false, c: false })).toBe('yes')
+    })
+    it('should support parentheses in unless elsif', async function () {
+      const src = '{% unless a %}1{% elsif (b or c) %}2{% else %}3{% endunless %}'
+      const html = await liquid.parseAndRender(src, { a: true, b: false, c: true })
+      return expect(html).toBe('2')
+    })
+  })
 })

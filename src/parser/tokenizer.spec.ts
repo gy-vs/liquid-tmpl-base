@@ -497,6 +497,62 @@ describe('Tokenizer', function () {
       expect(rhs).toBeInstanceOf(QuotedToken)
       expect(rhs.getText()).toEqual('"\\""')
     })
+    it('should read parenthesized expression `(a or b) and c`', () => {
+      const exp = new Tokenizer('(a or b) and c').readExpressionTokens()
+      const [open, a, or, b, close, and, c] = exp
+
+      expect(open).toBeInstanceOf(OperatorToken)
+      expect(open.getText()).toBe('(')
+      expect(a).toBeInstanceOf(PropertyAccessToken)
+      expect(a.getText()).toBe('a')
+      expect(or).toBeInstanceOf(OperatorToken)
+      expect(or.getText()).toBe('or')
+      expect(b).toBeInstanceOf(PropertyAccessToken)
+      expect(b.getText()).toBe('b')
+      expect(close).toBeInstanceOf(OperatorToken)
+      expect(close.getText()).toBe(')')
+      expect(and).toBeInstanceOf(OperatorToken)
+      expect(and.getText()).toBe('and')
+      expect(c).toBeInstanceOf(PropertyAccessToken)
+      expect(c.getText()).toBe('c')
+    })
+    it('should read nested parentheses `((a or b) and c)`', () => {
+      const exp = [...new Tokenizer('((a or b) and c)').readExpressionTokens()].map(t => t.getText())
+      expect(exp).toEqual(['(', '(', 'a', 'or', 'b', ')', 'and', 'c', ')'])
+    })
+    it('should keep `(1..3)` as a range token', () => {
+      const exp = new Tokenizer('(1..3)').readExpressionTokens()
+      const [range] = exp
+      expect(range).toBeInstanceOf(RangeToken)
+      expect(range.getText()).toBe('(1..3)')
+    })
+    it('should keep `(a..b) contains 2` as a range expression', () => {
+      const exp = new Tokenizer('(a..b) contains 2').readExpressionTokens()
+      const [range, contains, two] = exp
+      expect(range).toBeInstanceOf(RangeToken)
+      expect(range.getText()).toBe('(a..b)')
+      expect(contains.getText()).toBe('contains')
+      expect(two).toBeInstanceOf(NumberToken)
+    })
+    it('should read a range inside parentheses `((1..3) contains 2)`', () => {
+      const exp = [...new Tokenizer('((1..3) contains 2)').readExpressionTokens()]
+      expect(exp[0]).toBeInstanceOf(OperatorToken)
+      expect(exp[0].getText()).toBe('(')
+      expect(exp[1]).toBeInstanceOf(RangeToken)
+    })
+    it('should throw for empty parentheses', () => {
+      expect(() => new Tokenizer('()').readExpression()).toThrow('unexpected token ")", value expected')
+    })
+    it('should throw for missing closing parenthesis', () => {
+      expect(() => new Tokenizer('(a or b').readExpression()).toThrow('missing closing parenthesis')
+    })
+    it('should fall back to legacy parsing when parenthesizedExpressions is false', () => {
+      const tokenizer = new Tokenizer('(1..3)', defaultOperators, undefined, undefined, false)
+      const [range] = tokenizer.readExpressionTokens()
+      expect(range).toBeInstanceOf(RangeToken)
+      expect(() => new Tokenizer('(a or b)', defaultOperators, undefined, undefined, false).readExpression())
+        .toThrow('invalid range syntax')
+    })
   })
   describe('#matchTrie()', function () {
     const opTrie = createTrie(defaultOperators)

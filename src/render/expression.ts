@@ -74,8 +74,15 @@ function * evalRangeToken (token: RangeToken, ctx: Context) {
 function * toPostfix (tokens: IterableIterator<Token>): IterableIterator<Token> {
   const ops: OperatorToken[] = []
   for (const token of tokens) {
-    if (isOperatorToken(token)) {
-      while (ops.length && ops[ops.length - 1].getPrecedence() > token.getPrecedence()) {
+    if (isOperatorToken(token) && token.operator === '(') {
+      ops.push(token)
+    } else if (isOperatorToken(token) && token.operator === ')') {
+      while (ops.length && ops[ops.length - 1].operator !== '(') {
+        yield ops.pop()!
+      }
+      ops.pop()
+    } else if (isOperatorToken(token)) {
+      while (ops.length && ops[ops.length - 1].operator !== '(' && ops[ops.length - 1].getPrecedence() > token.getPrecedence()) {
         yield ops.pop()!
       }
       ops.push(token)

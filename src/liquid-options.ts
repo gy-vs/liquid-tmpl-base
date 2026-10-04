@@ -90,6 +90,8 @@ export interface LiquidOptions {
   renderLimit?: number;
   /** For DoS handling, limit new objects creation, including array concat/join/strftime, etc. A typical PC can handle 1e9 (1G) memory without issue. */
   memoryLimit?: number;
+  /** Whether to support parenthesized boolean expressions like `(a or b) and c` in tag conditions (`if`/`unless`/`elsif`). Parentheses can be nested; `(1..3)` range syntax is unaffected. Defaults to `true`. Set to `false` to fall back to the legacy parsing in which `(` is only recognized as the start of a range. */
+  parenthesizedExpressions?: boolean;
 }
 
 export interface RenderOptions {
@@ -162,6 +164,7 @@ export interface NormalizedFullOptions extends NormalizedOptions {
   parseLimit: number;
   renderLimit: number;
   memoryLimit: number;
+  parenthesizedExpressions: boolean;
 }
 
 export const defaultOptions: NormalizedFullOptions = {
@@ -197,7 +200,8 @@ export const defaultOptions: NormalizedFullOptions = {
   operators: defaultOperators,
   memoryLimit: Infinity,
   parseLimit: Infinity,
-  renderLimit: Infinity
+  renderLimit: Infinity,
+  parenthesizedExpressions: true
 }
 
 export function normalize (options: LiquidOptions): NormalizedFullOptions {

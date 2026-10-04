@@ -17,7 +17,8 @@ export class Tokenizer {
     public input: string,
     operators: Operators = defaultOptions.operators,
     public file?: string,
-    range?: [number, number]
+    range?: [number, number],
+    private parenthesizedExpressions: boolean = defaultOptions.parenthesizedExpressions
   ) {
     this.p = range ? range[0] : 0
     this.N = range ? range[1] : input.length
@@ -30,7 +31,35 @@ export class Tokenizer {
   }
 
   * readExpressionTokens (): IterableIterator<Token> {
+    let depth = 0
+    const parenBegin: number[] = []
     while (this.p < this.N) {
+      this.skipBlank()
+      if (this.parenthesizedExpressions && this.peek() === ')') {
+        if (depth === 0) return
+        yield new OperatorToken(this.input, this.p, this.p + 1, this.file)
+        ++this.p
+        depth--
+        parenBegin.pop()
+        continue
+      }
+      if (this.parenthesizedExpressions && this.peek() === '(') {
+        const begin = this.p
+        // `(lhs..rhs)` is a range expression; only a failed range parse
+        // can mean a parenthesized group like `(a or b)`
+        if (this.tryReadRange()) {
+          this.p = begin
+          yield this.readValueOrThrow()
+          continue
+        }
+        ++this.p
+        this.skipBlank()
+        this.assert(this.peek() !== ')', () => `unexpected token ${this.snapshot()}, value expected`)
+        yield new OperatorToken(this.input, begin, begin + 1, this.file)
+        depth++
+        parenBegin.push(begin)
+        continue
+      }
       const operator = this.readOperator()
       if (operator) {
         yield operator
@@ -41,7 +70,26 @@ export class Tokenizer {
         yield operand
         continue
       }
-      return
+      break
+    }
+    if (depth > 0) {
+      throw this.error('missing closing parenthesis ")" or invalid range syntax', parenBegin[parenBegin.length - 1])
+    }
+  }
+
+  /**
+   * Attempt to read a range expression at the current position. On failure
+   * (the content is not a range) the position is restored and `undefined`
+   * is returned.
+   */
+  private tryReadRange (): RangeToken | undefined {
+    const begin = this.p
+    try {
+      return this.readRange()
+    } catch (e) {
+      if (!(e instanceof TokenizationError)) throw e
+      this.p = begin
+      return undefined
     }
   }
   readOperator (): OperatorToken | undefined {

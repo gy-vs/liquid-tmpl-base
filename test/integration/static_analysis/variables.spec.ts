@@ -253,6 +253,21 @@ describe('Variable analysis', () => {
     })
   })
 
+  it('should report variables in parenthesized conditions', () => {
+    const template = engine.parse('{% if (vip or coupon) and active %}y{% endif %}')
+    const analysis = analyzeSync(template)
+
+    expect(Object.keys(analysis.globals).sort()).toEqual(['active', 'coupon', 'vip'])
+    expect(Object.keys(analysis.variables).sort()).toEqual(['active', 'coupon', 'vip'])
+  })
+
+  it('should report variables in nested parenthesized conditions', () => {
+    const template = engine.parse('{% if (score > 80 and level == "gold") or admin %}y{% endif %}')
+    const analysis = analyzeSync(template)
+
+    expect(Object.keys(analysis.globals).sort()).toEqual(['admin', 'level', 'score'])
+  })
+
   it('should report variables in nested blocks', () => {
     const template = engine.parse('{% if true %}{% if false %}{{ a }}{% endif %}{% endif %}')
     const analysis = analyzeSync(template)
